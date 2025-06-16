@@ -1,72 +1,60 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserCheck, Users as UsersIcon, Shield } from 'lucide-react';
+import { useAuthContext } from '@/context/AuthContext';
+import { SkeletonUsers } from '@/components/ui/skeleton-users';
+import PendingUsersTable from '@/components/users/PendingUsersTable';
+import ActiveUsersTable from '@/components/users/ActiveUsersTable';
 
-const users = [
-  {
-    id: 1,
-    name: "Alice Johnson",
-    email: "alice@example.com",
-    status: "Active",
-    role: "Admin",
-    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  },
-  {
-    id: 2,
-    name: "Bob Smith",
-    email: "bob@example.com",
-    status: "Active",
-    role: "User",
-    avatar: "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  },
-  {
-    id: 3,
-    name: "Carol Wilson",
-    email: "carol@example.com",
-    status: "Inactive",
-    role: "User",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  },
-];
+const UsersPage = () => {
+  const { isAdmin, user } = useAuthContext();
 
-export default function Users() {
+  // Show loading skeleton while checking auth
+  if (!user) {
+    return <SkeletonUsers />;
+  }
+
+  // Verificar se o usuário é admin antes de permitir acesso
+  if (!isAdmin()) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-        <p className="text-gray-600 mt-2">Manage your user accounts and permissions.</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <Shield className="h-8 w-8 text-blue-500" />
+          Gerenciamento de Usuários
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">Gerencie aprovações de usuários e perfis</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <Avatar>
-                    <AvatarImage src={user.avatar} />
-                    <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-gray-600">{user.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant={user.status === "Active" ? "default" : "secondary"}>
-                    {user.status}
-                  </Badge>
-                  <Badge variant="outline">{user.role}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs para separar usuários pendentes e ativos */}
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-white dark:bg-neutral-800 border border-hidden">
+          <TabsTrigger value="pending" className="flex items-center gap-2 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 dark:data-[state=active]:bg-neutral-700 dark:data-[state=active]:text-neutral-100 text-sm">
+            <UserCheck className="h-4 w-4" />
+            Usuários Pendentes
+          </TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center gap-2 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 dark:data-[state=active]:bg-neutral-700 dark:data-[state=active]:text-neutral-100 text-sm">
+            <UsersIcon className="h-4 w-4" />
+            Usuários Ativos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="space-y-6">
+          <PendingUsersTable />
+        </TabsContent>
+
+        <TabsContent value="active" className="space-y-6">
+          <ActiveUsersTable />
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
+
+export default UsersPage;

@@ -1,105 +1,136 @@
+import React, { useEffect, useRef } from "react";
+import { gsap } from "gsap";
+import DashboardChart from "@/components/DashboardChart.tsx";
 
-import { DollarSign, Users, ShoppingCart, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MetricCard } from "@/components/MetricCard";
-import { RevenueChart } from "@/components/RevenueChart";
-import { ActivityChart } from "@/components/ActivityChart";
-import { RecentActivity } from "@/components/RecentActivity";
+// Import refactored components
+import DashboardStats from "@/components/dashboard/DashboardStats";
+import RecentActivities from "@/components/dashboard/RecentActivities";
+import InventoryGauges from "@/components/dashboard/InventoryGauges";
+import LowStockTable from "@/components/dashboard/LowStockTable";
 
-export default function Dashboard() {
+// Import existing dashboard components
+import DemandForecastCard from "@/components/dashboard/DemandForecastCard";
+import RiskAlertsCard from "@/components/dashboard/RiskAlertsCard";
+import ForecastPerformanceCard from "@/components/dashboard/ForecastPerformanceCard";
+import QuickActionsCard from "@/components/dashboard/QuickActionsCard";
+import UnitSelectorCard from "@/components/dashboard/UnitSelectorCard";
+
+// Data imports
+import { useConsumptionData, useAppointmentTrends } from "@/hooks/useDashboardData";
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
+
+const Dashboard: React.FC = () => {
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const { data: consumptionData, isLoading: consumptionLoading } = useConsumptionData();
+  const { data: appointmentTrends, isLoading: trendsLoading } = useAppointmentTrends();
+
+  const loading = consumptionLoading || trendsLoading;
+
+  useEffect(() => {
+    if (loading) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        ".dashboard-card",
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          stagger: 0.1,
+          ease: "power2.out",
+        }
+      );
+
+      gsap.fromTo(
+        ".dashboard-chart",
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          stagger: 0.15,
+          ease: "power2.out",
+          delay: 0.3,
+        }
+      );
+    }, dashboardRef);
+
+    return () => ctx.revert();
+  }, [loading]);
+
+  if (loading) {
+    return <SkeletonDashboard />;
+  }
+
   return (
-    <div className="space-y-6">
+    <div
+      ref={dashboardRef}
+      className="space-y-6 dark:text-gray-100"
+    >
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your business today.</p>
+        <h1 className="text-3xl sm:text-3xl font-bold text-gray-800 dark:text-white">
+          Dashboard
+        </h1>
+        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
+          Visão geral do sistema de agendamentos e inventário
+        </p>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total Revenue"
-          value="$45,231.89"
-          change="+20.1%"
-          changeType="positive"
-          icon={DollarSign}
-        />
-        <MetricCard
-          title="Active Users"
-          value="2,350"
-          change="+12.5%"
-          changeType="positive"
-          icon={Users}
-        />
-        <MetricCard
-          title="Total Orders"
-          value="1,234"
-          change="+5.4%"
-          changeType="positive"
-          icon={ShoppingCart}
-        />
-        <MetricCard
-          title="Growth Rate"
-          value="8.2%"
-          change="-2.1%"
-          changeType="negative"
-          icon={TrendingUp}
-        />
+      {/* Estatísticas principais */}
+      <div className="dashboard-card">
+        <DashboardStats />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="hover:shadow-lg transition-shadow duration-300">
-          <CardHeader>
-            <CardTitle>Revenue & Profit Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RevenueChart />
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow duration-300">
-          <CardHeader>
-            <CardTitle>Weekly User Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityChart />
-          </CardContent>
-        </Card>
+      {/* Grid principal com layout mais equilibrado */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Coluna da esquerda - Unidades e métricas principais */}
+        <div className="xl:col-span-4 space-y-6">
+          <div className="dashboard-card h-[400px]">
+            <UnitSelectorCard />
+          </div>
+          <div className="dashboard-chart">
+        <RiskAlertsCard />
       </div>
+          
+        </div>
 
-      {/* Recent Activity Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2 hover:shadow-lg transition-shadow duration-300">
-          <CardHeader>
-            <CardTitle>Performance Metrics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">94.5%</div>
-                <div className="text-sm text-gray-600">Uptime</div>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">1.2s</div>
-                <div className="text-sm text-gray-600">Load Time</div>
-              </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">99.1%</div>
-                <div className="text-sm text-gray-600">Success Rate</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Coluna central - Analytics avançados */}
+        <div className="xl:col-span-4 space-y-6">
+          <div className="dashboard-chart">
+            <DashboardChart
+              type="area"
+              data={appointmentTrends || []}
+              title="Tendência de Agendamentos"
+              description="Agendamentos realizados nos últimos 6 meses"
+            />
+          </div>
+          
+          <div className="dashboard-card">
+            <ForecastPerformanceCard />
+          </div>
+        </div>
 
-        <Card className="hover:shadow-lg transition-shadow duration-300">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RecentActivity />
-          </CardContent>
-        </Card>
+        {/* Coluna da direita - Ações e alertas */}
+        <div className="xl:col-span-4 space-y-6">
+          <div className="dashboard-card">
+            <QuickActionsCard />
+          </div>
+          
+          <div className="dashboard-card">
+            <RecentActivities />
+          </div>
+
+          {/*<div className="dashboard-card">
+            <DemandForecastCard />
+          </div>*/}
+        </div>
+      </div>
+      <div className="dashboard-card">
+            <InventoryGauges />
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;
