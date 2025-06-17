@@ -387,11 +387,11 @@ const Reports = () => {
         </TabsContent>
 
         <TabsContent value="performance" className="mt-0">
-          <PerformanceMetrics />
+          <PerformanceMetrics selectedUnitId={unitFilter} />
         </TabsContent>
 
         <TabsContent value="cost-analysis" className="mt-0">
-          <CostAnalysis />
+          <CostAnalysis selectedUnitId={unitFilter} />
         </TabsContent>
 
         <TabsContent value="export" className="mt-0">

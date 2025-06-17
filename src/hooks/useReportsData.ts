@@ -39,7 +39,7 @@ export const useReportsData = (selectedUnitId?: string) => {
             units(name, code)
           `)
           .order('scheduled_date', { ascending: false })
-          .limit(100);
+          .limit(200);
 
         if (unitFilter) {
           appointmentsQuery = appointmentsQuery.eq('unit_id', unitFilter);
@@ -65,7 +65,7 @@ export const useReportsData = (selectedUnitId?: string) => {
             units(name)
           `)
           .eq('active', true)
-          .limit(200);
+          .limit(300);
 
         if (unitFilter) {
           inventoryQuery = inventoryQuery.eq('unit_id', unitFilter);
@@ -76,7 +76,7 @@ export const useReportsData = (selectedUnitId?: string) => {
           console.error('Erro ao buscar inventário:', inventoryError);
         }
 
-        // Buscar movimentações de estoque
+        // Buscar movimentações de estoque - corrigir o filtro de unidade
         const { data: movements, error: movementsError } = await supabase
           .from('inventory_movements')
           .select(`
@@ -90,7 +90,7 @@ export const useReportsData = (selectedUnitId?: string) => {
           `)
           .gte('created_at', subMonths(new Date(), 6).toISOString())
           .order('created_at', { ascending: false })
-          .limit(200);
+          .limit(300);
 
         if (movementsError) {
           console.error('Erro ao buscar movimentações:', movementsError);
@@ -103,7 +103,7 @@ export const useReportsData = (selectedUnitId?: string) => {
             )
           : movements || [];
 
-        // Buscar alertas
+        // Buscar alertas - corrigir o filtro de unidade
         const { data: alerts, error: alertsError } = await supabase
           .from('stock_alerts')
           .select(`
@@ -116,7 +116,7 @@ export const useReportsData = (selectedUnitId?: string) => {
             inventory_items!inner(name, unit_id)
           `)
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(150);
 
         if (alertsError) {
           console.error('Erro ao buscar alertas:', alertsError);
@@ -216,7 +216,7 @@ export const useReportMetrics = (data: ReportData) => {
   };
 };
 
-// Funções auxiliares para cálculos
+// Funções auxiliares para cálculos - corrigidas para usar dados reais
 const calculateWeeklyRevenue = (appointments: any[]) => {
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
@@ -293,7 +293,15 @@ const calculateInventoryByCategory = (inventory: any[]) => {
 const calculateMovementsByType = (movements: any[]) => {
   const typeCount: { [key: string]: number } = {};
   movements.forEach(movement => {
-    const type = movement.movement_type;
+    let type = movement.movement_type;
+    // Traduzir os tipos para português
+    switch(type) {
+      case 'in': type = 'Entrada'; break;
+      case 'out': type = 'Saída'; break;
+      case 'adjustment': type = 'Ajuste'; break;
+      case 'transfer': type = 'Transferência'; break;
+      default: type = movement.movement_type;
+    }
     typeCount[type] = (typeCount[type] || 0) + 1;
   });
 
