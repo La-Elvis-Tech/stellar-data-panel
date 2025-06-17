@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -241,7 +242,7 @@ export const useAuth = () => {
         return { data: null, error: { message: 'Account pending approval' } };
       }
 
-      // Se o usuário tem status inativo/suspenso
+      // Se o usuário tem status inativo/suspenso (corrigido o erro de TypeScript)
       if (data?.user && profileData && profileData.status !== 'active') {
         authLogger.info('User login successful but account inactive', { email, status: profileData.status });
         
@@ -250,6 +251,8 @@ export const useAuth = () => {
         
         const statusMessage = profileData.status === 'suspended' 
           ? 'Sua conta foi suspensa. Entre em contato com um administrador.'
+          : profileData.status === 'pending'
+          ? 'Sua conta está aguardando aprovação de um administrador.'
           : 'Sua conta foi desativada. Entre em contato com um administrador.';
         
         toast({
