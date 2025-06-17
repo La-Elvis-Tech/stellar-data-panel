@@ -42,7 +42,8 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
   const { 
     createAppointment, 
     calculateExamMaterials, 
-    loading: dataLoading 
+    loading: dataLoading,
+    units
   } = useSupabaseAppointments();
 
   const {
@@ -289,6 +290,11 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
+                {filteredDoctors.length === 0 && (
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    Nenhum médico disponível para sua unidade.
+                  </p>
+                )}
               </div>
 
               {/* Tipo de exame */}
@@ -365,7 +371,11 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                       <SelectValue placeholder="Selecione a unidade" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Será preenchido pelo hook useSupabaseAppointments */}
+                      {units.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name} ({unit.code})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

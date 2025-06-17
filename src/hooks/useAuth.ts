@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -241,9 +242,9 @@ export const useAuth = () => {
         return { data: null, error: { message: 'Account pending approval' } };
       }
 
-      // Se o usuário tem status inativo/suspenso
+      // Se o usuário tem status suspenso
       if (data?.user && profileData && profileData.status === 'suspended') {
-        authLogger.info('User login successful but account inactive', { email, status: profileData.status });
+        authLogger.info('User login successful but account suspended', { email, status: profileData.status });
         
         // Fazer logout do usuário
         await supabase.auth.signOut();
@@ -253,7 +254,7 @@ export const useAuth = () => {
           description: 'Sua conta foi suspensa. Entre em contato com um administrador.',
           variant: 'destructive',
         });
-        return { data: null, error: { message: 'Account not active' } };
+        return { data: null, error: { message: 'Account suspended' } };
       }
 
       authLogger.info('Sign in successful', { email, userId: data.user?.id });
