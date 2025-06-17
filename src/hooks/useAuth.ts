@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -194,14 +193,30 @@ export const useAuth = () => {
       // Clean up any existing auth state
       cleanupAuthState();
       
+      // Primeiro verificar se o usuário existe e seu status
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('status, full_name')
+        .eq('email', email)
+        .single();
+
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
         password 
       });
       
       if (error) {
-        const friendlyMessage = getAuthErrorMessage(error);
         authLogger.error('Sign in failed', { email, error: error.message });
+        
+        // Mensagens específicas baseadas no erro
+        let friendlyMessage = '';
+        if (error.message.includes('Invalid login credentials')) {
+          friendlyMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.';
+        } else if (error.message.includes('Email not confirmed')) {
+          friendlyMessage = 'Email não confirmado. Verifique sua caixa de entrada e confirme seu email.';
+        } else {
+          friendlyMessage = getAuthErrorMessage(error);
+        }
         
         toast({
           title: 'Erro no login',
@@ -211,11 +226,45 @@ export const useAuth = () => {
         return { data: null, error };
       }
 
+      // Se o login foi bem-sucedido mas o usuário tem status pending
+      if (data?.user && profileData && profileData.status === 'pending') {
+        authLogger.info('User login successful but account pending approval', { email });
+        
+        // Fazer logout do usuário
+        await supabase.auth.signOut();
+        
+        toast({
+          title: 'Conta pendente de aprovação',
+          description: 'Sua conta está aguardando aprovação de um administrador. Você receberá um email quando for aprovada.',
+          variant: 'destructive',
+        });
+        return { data: null, error: { message: 'Account pending approval' } };
+      }
+
+      // Se o usuário tem status inativo/suspenso
+      if (data?.user && profileData && profileData.status !== 'active') {
+        authLogger.info('User login successful but account inactive', { email, status: profileData.status });
+        
+        // Fazer logout do usuário
+        await supabase.auth.signOut();
+        
+        const statusMessage = profileData.status === 'suspended' 
+          ? 'Sua conta foi suspensa. Entre em contato com um administrador.'
+          : 'Sua conta foi desativada. Entre em contato com um administrador.';
+        
+        toast({
+          title: 'Conta não ativa',
+          description: statusMessage,
+          variant: 'destructive',
+        });
+        return { data: null, error: { message: 'Account not active' } };
+      }
+
       authLogger.info('Sign in successful', { email, userId: data.user?.id });
       
       toast({
         title: 'Login realizado com sucesso!',
-        description: 'Bem-vindo ao sistema.',
+        description: `Bem-vindo, ${profileData?.full_name || email}!`,
       });
       
       return { data, error: null };

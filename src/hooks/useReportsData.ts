@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/context/AuthContext';
@@ -13,10 +12,15 @@ export interface ReportData {
 }
 
 export const useReportsData = (selectedUnitId?: string) => {
-  const { profile } = useAuthContext();
+  const { profile, hasRole } = useAuthContext();
   
-  // Determinar qual unidade usar para filtrar os dados
-  const unitFilter = selectedUnitId || profile?.unit_id;
+  // Lógica corrigida: 
+  // - Se usuário é admin/supervisor e selectedUnitId = "all", não filtrar por unidade
+  // - Se usuário é admin/supervisor e selectedUnitId está definido, usar selectedUnitId
+  // - Se usuário comum ou não há selectedUnitId, usar profile.unit_id
+  const unitFilter = (hasRole('admin') || hasRole('supervisor')) && selectedUnitId === "all" 
+    ? undefined 
+    : selectedUnitId || profile?.unit_id;
 
   return useQuery({
     queryKey: ['reports-data', unitFilter],
@@ -130,13 +134,18 @@ export const useReportsData = (selectedUnitId?: string) => {
           : alerts || [];
 
         // Buscar unidades (apenas se usuário tem permissão)
-        const { data: units, error: unitsError } = await supabase
-          .from('units')
-          .select('*')
-          .eq('active', true);
+        let units = [];
+        if (hasRole('admin') || hasRole('supervisor')) {
+          const { data: unitsData, error: unitsError } = await supabase
+            .from('units')
+            .select('*')
+            .eq('active', true);
 
-        if (unitsError) {
-          console.error('Erro ao buscar unidades:', unitsError);
+          if (unitsError) {
+            console.error('Erro ao buscar unidades:', unitsError);
+          } else {
+            units = unitsData || [];
+          }
         }
 
         const reportData = {
@@ -144,7 +153,7 @@ export const useReportsData = (selectedUnitId?: string) => {
           inventory: inventory || [],
           movements: filteredMovements,
           alerts: filteredAlerts,
-          units: units || []
+          units: units
         };
 
         console.log('Dados do relatório carregados:', {
@@ -152,7 +161,8 @@ export const useReportsData = (selectedUnitId?: string) => {
           inventory: reportData.inventory.length,
           movements: reportData.movements.length,
           alerts: reportData.alerts.length,
-          units: reportData.units.length
+          units: reportData.units.length,
+          unitFilter
         });
 
         return reportData;
