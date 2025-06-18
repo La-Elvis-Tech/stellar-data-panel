@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, User, Stethoscope, DollarSign, Plus, X, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -130,12 +129,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       errors.push('Selecione um horário');
     }
 
-    // Verificar unidade
-    const unitToUse = selectedUnit || profile?.unit_id;
-    if (!unitToUse && !isAdmin() && !isSupervisor()) {
-      errors.push('Unidade é obrigatória');
-    }
-
     setValidationErrors(errors);
     return errors.length === 0;
   };
@@ -188,24 +181,22 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     setIsCreating(true);
 
     try {
-      // Determinar a unidade
-      let unitToUse = selectedUnit || profile?.unit_id;
+      // Determinar a unidade - lógica simplificada
+      let unitToUse: string;
       
-      // Se é admin/supervisor e não selecionou unidade específica, usar a primeira disponível
-      if ((isAdmin() || isSupervisor()) && !unitToUse && units.length > 0) {
-        unitToUse = units[0].id;
+      if (isAdmin() || isSupervisor()) {
+        // Admin/supervisor pode escolher qualquer unidade
+        unitToUse = selectedUnit || profile?.unit_id || (units.length > 0 ? units[0].id : '');
+      } else {
+        // Usuário comum usa sempre sua própria unidade
+        unitToUse = profile?.unit_id || '';
       }
       
       if (!unitToUse) {
-        throw new Error('Unidade não definida. Selecione uma unidade.');
+        throw new Error('Não foi possível determinar a unidade para o agendamento.');
       }
 
-      console.log('Creating appointment with:', {
-        unit_id: unitToUse,
-        doctor_id: selectedDoctor,
-        exam_type_id: selectedExamType,
-        patient_name: formData.patient_name
-      });
+      console.log('Creating appointment with unit:', unitToUse);
 
       const appointmentDate = new Date(`${formData.date}T${formData.time}`);
       
@@ -220,7 +211,8 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         duration_minutes: formData.duration_minutes,
         cost: formData.cost || null,
         notes: formData.notes.trim() || null,
-        status: 'Agendado' as const
+        status: 'Agendado' as const,
+        created_by: profile?.id || ''
       };
 
       console.log('Final appointment data:', appointmentData);
