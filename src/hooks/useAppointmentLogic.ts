@@ -14,20 +14,22 @@ export const useAppointmentLogic = () => {
   const [filteredDoctors, setFilteredDoctors] = useState(doctors);
   const [filteredExamTypes, setFilteredExamTypes] = useState(examTypes);
 
-  // Mapeamento mais flexível de especialidades médicas
+  // Mapeamento expandido e mais flexível de especialidades médicas
   const specialtyExamMapping: Record<string, string[]> = {
-    'Cardiologia': ['cardio', 'coração', 'ecg', 'eco', 'pressao'],
-    'Endocrinologia': ['diabetes', 'hormonio', 'tireoid', 'glicemia', 'insulina'],
-    'Hematologia': ['sangue', 'hemograma', 'coagul', 'plaquetas'],
-    'Gastroenterologia': ['gastro', 'digestiv', 'endoscop'],
-    'Neurologia': ['neuro', 'cerebr', 'encefalograma'],
-    'Ortopedia': ['osso', 'articular', 'raio-x', 'radiografia'],
-    'Dermatologia': ['pele', 'dermat'],
-    'Oftalmologia': ['olho', 'ocular', 'visao'],
-    'Urologia': ['urina', 'psa', 'prostata'],
-    'Ginecologia': ['gineco', 'mama', 'papanicolau'],
-    'Pneumologia': ['pulmonar', 'respirat', 'torax'],
-    'Laboratório': ['laboratorial', 'coleta', 'analise'],
+    'Cardiologia': ['cardio', 'coração', 'ecg', 'eco', 'pressao', 'ergométrico', 'holter'],
+    'Endocrinologia': ['diabetes', 'hormonio', 'tireoid', 'glicemia', 'insulina', 'cortisol'],
+    'Hematologia': ['sangue', 'hemograma', 'coagul', 'plaquetas', 'hematócrito'],
+    'Gastroenterologia': ['gastro', 'digestiv', 'endoscop', 'colonoscopia', 'estômago'],
+    'Neurologia': ['neuro', 'cerebr', 'encefalograma', 'ressonância cerebral'],
+    'Ortopedia': ['osso', 'articular', 'raio-x', 'radiografia', 'ressonância articular'],
+    'Dermatologia': ['pele', 'dermat', 'biópsia', 'dermatoscopia'],
+    'Oftalmologia': ['olho', 'ocular', 'visao', 'acuidade', 'fundo de olho'],
+    'Urologia': ['urina', 'psa', 'prostata', 'renal'],
+    'Ginecologia': ['gineco', 'mama', 'papanicolau', 'ultrassom pélvico'],
+    'Pneumologia': ['pulmonar', 'respirat', 'torax', 'espirometria'],
+    'Radiologia': ['raio-x', 'tomografia', 'ressonância', 'ultrassom', 'mamografia', 'densitometria', 'radiografia', 'tc', 'rm', 'us'],
+    'Endoscopia': ['endoscopia', 'colonoscopia', 'gastroscopia', 'broncoscopia', 'endoscópico'],
+    'Laboratório': ['laboratorial', 'coleta', 'analise', 'sangue', 'urina'],
     'Clínica Geral': [] // Pode fazer todos os exames básicos
   };
 
@@ -55,7 +57,7 @@ export const useAppointmentLogic = () => {
     setFilteredDoctors(filtered);
   }, [doctors, profile?.unit_id, selectedUnit, isAdmin, isSupervisor]);
 
-  // Filtrar tipos de exame - mais permissivo
+  // Filtrar tipos de exame - mais permissivo e específico para cada especialidade
   useEffect(() => {
     console.log('Filtering exam types. Total exam types:', examTypes.length);
     console.log('Selected doctor:', selectedDoctor);
@@ -76,23 +78,33 @@ export const useAppointmentLogic = () => {
         console.log('Allowed keywords:', allowedExamKeywords);
         
         if (allowedExamKeywords.length > 0) {
-          // Filtro mais permissivo
+          // Filtro específico para a especialidade
           filtered = filtered.filter(exam => {
+            const examNameLower = exam.name.toLowerCase();
+            const examCategoryLower = (exam.category || '').toLowerCase();
+            
+            // Verificar se o nome do exame ou categoria contém palavras-chave da especialidade
             const isSpecialtyMatch = allowedExamKeywords.some(keyword => 
-              exam.name.toLowerCase().includes(keyword.toLowerCase()) ||
-              exam.category?.toLowerCase().includes(keyword.toLowerCase())
+              examNameLower.includes(keyword.toLowerCase()) ||
+              examCategoryLower.includes(keyword.toLowerCase())
             );
+            
+            // Verificar se a categoria do exame corresponde exatamente à especialidade
+            const isCategoryMatch = examCategoryLower === doctor.specialty.toLowerCase();
             
             // Sempre permitir exames básicos/gerais
             const isBasicExam = [
               'consulta', 'avaliacao', 'geral', 'basico', 'rotina', 
               'checkup', 'preventivo', 'triagem'
             ].some(basic =>
-              exam.name.toLowerCase().includes(basic.toLowerCase()) ||
-              exam.category?.toLowerCase().includes(basic.toLowerCase())
+              examNameLower.includes(basic.toLowerCase()) ||
+              examCategoryLower.includes(basic.toLowerCase())
             );
             
-            return isSpecialtyMatch || isBasicExam;
+            const shouldInclude = isSpecialtyMatch || isCategoryMatch || isBasicExam;
+            console.log(`Exam "${exam.name}" - Specialty match: ${isSpecialtyMatch}, Category match: ${isCategoryMatch}, Basic: ${isBasicExam}, Include: ${shouldInclude}`);
+            
+            return shouldInclude;
           });
         }
       }
@@ -172,18 +184,21 @@ export const useAppointmentLogic = () => {
     }
 
     // Verifica compatibilidade específica
+    const examNameLower = exam.name.toLowerCase();
+    const examCategoryLower = (exam.category || '').toLowerCase();
+    
     const isCompatible = allowedExamKeywords.some(keyword => 
-      exam.name.toLowerCase().includes(keyword.toLowerCase()) ||
-      exam.category?.toLowerCase().includes(keyword.toLowerCase())
-    );
+      examNameLower.includes(keyword.toLowerCase()) ||
+      examCategoryLower.includes(keyword.toLowerCase())
+    ) || examCategoryLower === doctor.specialty.toLowerCase();
 
     // Permite exames básicos
     const isBasicExam = [
       'consulta', 'avaliacao', 'geral', 'basico', 'rotina',
       'checkup', 'preventivo', 'triagem'
     ].some(basic =>
-      exam.name.toLowerCase().includes(basic.toLowerCase()) ||
-      exam.category?.toLowerCase().includes(basic.toLowerCase())
+      examNameLower.includes(basic.toLowerCase()) ||
+      examCategoryLower.includes(basic.toLowerCase())
     );
 
     return isCompatible || isBasicExam;

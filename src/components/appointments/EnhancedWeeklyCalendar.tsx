@@ -66,7 +66,7 @@ const EnhancedWeeklyCalendar: React.FC<EnhancedWeeklyCalendarProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <WeeklyCalendarHeader
         currentWeek={currentWeek}
         onNavigateWeek={handleNavigateWeek}
@@ -77,29 +77,54 @@ const EnhancedWeeklyCalendar: React.FC<EnhancedWeeklyCalendarProps> = ({
       />
 
       {selectedUnitFilter !== 'todas' && (
-        <div className="text-sm text-neutral-600 dark:text-neutral-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
-          Exibindo dados da unidade: <span className="font-semibold">
-            {units.find(u => u.id === selectedUnitFilter)?.name || 'Unidade selecionada'}
-          </span>
+        <div className="text-sm text-neutral-600 dark:text-neutral-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <span>Exibindo dados da unidade: <span className="font-semibold">
+              {units.find(u => u.id === selectedUnitFilter)?.name || 'Unidade selecionada'}
+            </span></span>
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-2 lg:gap-4">
-        {weekDays.map((day) => (
-          <WeeklyCalendarByDoctor
-            key={day.toISOString()}
-            day={day}
-            appointments={filteredData.appointments}
-            doctors={filteredData.doctors}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            onSelectSlot={onSelectSlot}
-          />
-        ))}
+      {/* Layout horizontal dos dias */}
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-7 divide-x divide-neutral-200 dark:divide-neutral-700">
+          {weekDays.map((day, index) => (
+            <div key={day.toISOString()} className="min-h-[600px] flex flex-col">
+              {/* Cabeçalho do dia */}
+              <div className="bg-neutral-50 dark:bg-neutral-800 p-3 border-b border-neutral-200 dark:border-neutral-700">
+                <div className="text-center">
+                  <div className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">
+                    {format(day, 'EEE', { locale: ptBR })}
+                  </div>
+                  <div className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                    {format(day, 'd')}
+                  </div>
+                  <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                    {format(day, 'MMM', { locale: ptBR })}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Conteúdo do dia */}
+              <div className="flex-1 p-2">
+                <WeeklyCalendarByDoctor
+                  day={day}
+                  appointments={filteredData.appointments}
+                  doctors={filteredData.doctors}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  onSelectSlot={onSelectSlot}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {filteredData.doctors.length === 0 && selectedUnitFilter !== 'todas' && (
-        <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+        <div className="text-center py-8 text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700">
           <p>Nenhum médico encontrado para a unidade selecionada.</p>
         </div>
       )}

@@ -32,18 +32,16 @@ const WeeklyCalendarByDoctor: React.FC<WeeklyCalendarByDoctorProps> = ({
 }) => {
   const isSelected = selectedDate && isSameDay(day, selectedDate);
   const isPast = !isAfter(day, startOfToday()) && !isToday(day);
-  const isWeekend = getDay(day) === 0 || getDay(day) === 6; // 0 = domingo, 6 = sábado
+  const isWeekend = getDay(day) === 0 || getDay(day) === 6;
 
   // Horários disponíveis baseados no dia da semana
   const getAvailableHours = () => {
     if (isWeekend) {
-      // Fins de semana: 8:00 às 14:00
       return [
         '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
         '11:00', '11:30', '12:00', '12:30', '13:00', '13:30'
       ];
     } else {
-      // Dias úteis: 7:00 às 17:30
       return [
         '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
         '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
@@ -104,55 +102,18 @@ const WeeklyCalendarByDoctor: React.FC<WeeklyCalendarByDoctorProps> = ({
   };
 
   return (
-    <div
-      className={`
-        p-3 rounded-xl cursor-pointer transition-all duration-200 min-h-[500px] border-2
-        ${isSelected 
-          ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-600 shadow-lg ring-2 ring-blue-200 dark:ring-blue-800' 
-          : 'bg-white border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:bg-neutral-800 shadow-sm'
-        }
-        ${isPast ? 'opacity-50' : ''}
-        ${isToday(day) ? 'ring-2 ring-indigo-300 dark:ring-indigo-700' : ''}
-      `}
-      onClick={() => !isPast && onSelectDate(day)}
-    >
-      {/* Cabeçalho do dia aprimorado */}
-      <div className="text-center mb-4 border-b border-neutral-200 dark:border-neutral-700 pb-3">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <Clock className="h-3 w-3 text-neutral-500 dark:text-neutral-400" />
-          <div className="text-xs text-neutral-500 dark:text-neutral-400 uppercase font-medium tracking-wide">
-            {format(day, 'EEE', { locale: ptBR })}
-          </div>
-        </div>
-        <div className={`text-xl font-bold ${
-          isToday(day) 
-            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 rounded-full w-8 h-8 flex items-center justify-center mx-auto' 
-            : isSelected
-            ? 'text-blue-700 dark:text-blue-300'
-            : 'text-neutral-900 dark:text-neutral-100'
-        }`}>
-          {format(day, 'd')}
-        </div>
-        {isWeekend && (
-          <div className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full mt-1">
-            Horário Reduzido
-          </div>
-        )}
-        <div className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
-          {format(day, 'dd/MM', { locale: ptBR })}
-        </div>
-      </div>
-      
-      {/* Subdivisões por médico aprimoradas */}
-      <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-300 dark:scrollbar-thumb-neutral-600">
-        {doctors.slice(0, 3).map((doctor) => {
+    <div className="h-full flex flex-col space-y-3">
+      {/* Lista de médicos e horários - layout compacto para horizontal */}
+      <div className="space-y-2 flex-1 overflow-y-auto">
+        {doctors.slice(0, 2).map((doctor) => {
           const doctorAppts = getDoctorAppointments(doctor.id);
           
           return (
-            <div key={doctor.id} className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-3 bg-neutral-50/50 dark:bg-neutral-800/50">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-neutral-200 dark:border-neutral-700">
-                <User className="h-3 w-3 text-neutral-500 dark:text-neutral-400" />
-                <div>
+            <div key={doctor.id} className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-2 bg-neutral-50/50 dark:bg-neutral-800/50">
+              {/* Cabeçalho do médico */}
+              <div className="flex items-center gap-1 mb-2 pb-1 border-b border-neutral-200 dark:border-neutral-700">
+                <User className="h-2.5 w-2.5 text-neutral-500 dark:text-neutral-400" />
+                <div className="min-w-0 flex-1">
                   <div className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">
                     Dr. {doctor.name}
                   </div>
@@ -165,8 +126,8 @@ const WeeklyCalendarByDoctor: React.FC<WeeklyCalendarByDoctorProps> = ({
               </div>
               
               {/* Primeiros horários do médico */}
-              <div className="grid grid-cols-2 gap-1">
-                {availableHours.slice(0, 6).map((time) => {
+              <div className="grid grid-cols-1 gap-1">
+                {availableHours.slice(0, 4).map((time) => {
                   const isTaken = isTimeSlotTaken(doctor.id, time);
                   const appointment = doctorAppts.find(appt => 
                     format(new Date(appt.scheduled_date), 'HH:mm') === time
@@ -176,18 +137,13 @@ const WeeklyCalendarByDoctor: React.FC<WeeklyCalendarByDoctorProps> = ({
                     return (
                       <div
                         key={time}
-                        className={`text-xs p-2 rounded border-2 cursor-pointer transition-all ${getStatusColor(appointment.status)}`}
+                        className={`text-xs p-1.5 rounded border cursor-pointer transition-all ${getStatusColor(appointment.status)}`}
                         title={`${appointment.patient_name} - ${appointment.exam_types?.name || 'Exame'}`}
                       >
                         <div className="font-semibold text-center">{time}</div>
                         <div className="truncate text-xs opacity-90 text-center">
                           {appointment.patient_name}
                         </div>
-                        {appointment.exam_types?.name && (
-                          <div className="truncate text-xs opacity-75 text-center mt-1 bg-white/20 rounded px-1">
-                            {appointment.exam_types.name}
-                          </div>
-                        )}
                       </div>
                     );
                   } else if (!isPast) {
@@ -196,7 +152,7 @@ const WeeklyCalendarByDoctor: React.FC<WeeklyCalendarByDoctorProps> = ({
                         key={time}
                         variant="outline"
                         size="sm"
-                        className="h-12 text-xs p-1 border-neutral-300 dark:border-neutral-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-700 transition-all"
+                        className="h-8 text-xs p-1 border-neutral-300 dark:border-neutral-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-300 dark:hover:border-green-700 transition-all"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleTimeSlotClick(doctor.id, doctor.name, time);
@@ -214,26 +170,26 @@ const WeeklyCalendarByDoctor: React.FC<WeeklyCalendarByDoctorProps> = ({
                 })}
               </div>
               
-              {doctorAppts.length > 6 && (
-                <div className="text-xs text-center text-neutral-500 dark:text-neutral-400 font-medium bg-neutral-100 dark:bg-neutral-800 rounded-lg py-2 mt-2">
-                  +{doctorAppts.length - 6} agendamentos
+              {doctorAppts.length > 4 && (
+                <div className="text-xs text-center text-neutral-500 dark:text-neutral-400 font-medium bg-neutral-100 dark:bg-neutral-800 rounded-lg py-1 mt-1">
+                  +{doctorAppts.length - 4} mais
                 </div>
               )}
             </div>
           );
         })}
         
-        {doctors.length > 3 && (
-          <div className="text-xs text-center text-neutral-500 dark:text-neutral-400 font-medium bg-gradient-to-r from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-700 rounded-lg py-3 border border-neutral-200 dark:border-neutral-700">
-            <User className="h-4 w-4 mx-auto mb-1" />
-            +{doctors.length - 3} médicos disponíveis
+        {doctors.length > 2 && (
+          <div className="text-xs text-center text-neutral-500 dark:text-neutral-400 font-medium bg-gradient-to-r from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-700 rounded-lg py-2 border border-neutral-200 dark:border-neutral-700">
+            <User className="h-3 w-3 mx-auto mb-1" />
+            +{doctors.length - 2} médicos
           </div>
         )}
         
         {doctors.length === 0 && (
-          <div className="text-xs text-center text-neutral-400 dark:text-neutral-500 py-6 bg-neutral-100 dark:bg-neutral-800 rounded-lg border-2 border-dashed border-neutral-300 dark:border-neutral-600">
-            <User className="h-6 w-6 mx-auto mb-2 opacity-50" />
-            Nenhum médico disponível
+          <div className="text-xs text-center text-neutral-400 dark:text-neutral-500 py-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg border-2 border-dashed border-neutral-300 dark:border-neutral-600">
+            <User className="h-4 w-4 mx-auto mb-1 opacity-50" />
+            Nenhum médico
           </div>
         )}
       </div>
