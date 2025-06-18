@@ -114,12 +114,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       errors.push('Email deve ter um formato válido (exemplo@dominio.com)');
     }
 
-    // Verificar unidade - sempre necessária
-    const unitToUse = selectedUnit || profile?.unit_id;
-    if (!unitToUse) {
-      errors.push('Unidade é obrigatória');
-    }
-
     if (!selectedDoctor) {
       errors.push('Selecione um médico');
     }
@@ -136,6 +130,12 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       errors.push('Selecione um horário');
     }
 
+    // Verificar unidade
+    const unitToUse = selectedUnit || profile?.unit_id;
+    if (!unitToUse && !isAdmin() && !isSupervisor()) {
+      errors.push('Unidade é obrigatória');
+    }
+
     setValidationErrors(errors);
     return errors.length === 0;
   };
@@ -149,7 +149,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         date: prefilledData.date,
         time: prefilledData.time,
       }));
-      // Selecionar médico primeiro
       if (prefilledData.doctorId) {
         handleDoctorChange(prefilledData.doctorId);
       }
@@ -176,11 +175,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     e.preventDefault();
     
     console.log('Form submission started');
-    console.log('Form data:', formData);
-    console.log('Selected doctor:', selectedDoctor);
-    console.log('Selected exam type:', selectedExamType);
-    console.log('Selected unit:', selectedUnit);
-    console.log('Profile unit:', profile?.unit_id);
     
     if (!validateForm()) {
       toast({
@@ -194,31 +188,42 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     setIsCreating(true);
 
     try {
-      const unitToUse = selectedUnit || profile?.unit_id;
+      // Determinar a unidade
+      let unitToUse = selectedUnit || profile?.unit_id;
+      
+      // Se é admin/supervisor e não selecionou unidade específica, usar a primeira disponível
+      if ((isAdmin() || isSupervisor()) && !unitToUse && units.length > 0) {
+        unitToUse = units[0].id;
+      }
       
       if (!unitToUse) {
-        throw new Error('Unidade não definida');
+        throw new Error('Unidade não definida. Selecione uma unidade.');
       }
 
-      console.log('Creating appointment with unit:', unitToUse);
+      console.log('Creating appointment with:', {
+        unit_id: unitToUse,
+        doctor_id: selectedDoctor,
+        exam_type_id: selectedExamType,
+        patient_name: formData.patient_name
+      });
 
       const appointmentDate = new Date(`${formData.date}T${formData.time}`);
       
       const appointmentData = {
-        patient_name: formData.patient_name,
-        patient_email: formData.patient_email || undefined,
-        patient_phone: formData.patient_phone || undefined,
+        patient_name: formData.patient_name.trim(),
+        patient_email: formData.patient_email.trim() || null,
+        patient_phone: formData.patient_phone.trim() || null,
         exam_type_id: selectedExamType!,
         doctor_id: selectedDoctor!,
         unit_id: unitToUse,
         scheduled_date: appointmentDate.toISOString(),
         duration_minutes: formData.duration_minutes,
-        cost: formData.cost || undefined,
-        notes: formData.notes || undefined,
+        cost: formData.cost || null,
+        notes: formData.notes.trim() || null,
         status: 'Agendado' as const
       };
 
-      console.log('Appointment data to create:', appointmentData);
+      console.log('Final appointment data:', appointmentData);
 
       await createAppointment(appointmentData);
 
@@ -247,7 +252,18 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
 
     } catch (error: any) {
       console.error('Erro ao criar agendamento:', error);
-      const errorMessage = error?.message || 'Erro desconhecido';
+      
+      let errorMessage = 'Erro desconhecido ao criar agendamento';
+      
+      if (error?.message) {
+        if (error.message.includes('violates row-level security')) {
+          errorMessage = 'Você não tem permissão para criar agendamentos nesta unidade';
+        } else if (error.message.includes('Estoque insuficiente')) {
+          errorMessage = error.message.replace('Estoque insuficiente: ', '');
+        } else {
+          errorMessage = error.message;
+        }
+      }
       
       toast({
         title: "Erro ao criar agendamento",
@@ -269,7 +285,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       [field]: value
     }));
 
-    // Revalidar quando campos mudarem
     if (validationErrors.length > 0) {
       setTimeout(validateForm, 100);
     }
@@ -312,7 +327,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          {/* Mostrar erros de validação */}
           {validationErrors.length > 0 && (
             <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
               <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -362,11 +376,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                     validationErrors.some(e => e.includes('Email')) ? 'border-red-500' : ''
                   }`}
                 />
-                {formData.patient_email && !isValidEmail(formData.patient_email) && (
-                  <p className="text-xs text-red-600 dark:text-red-400">
-                    Formato de email inválido
-                  </p>
-                )}
               </div>
 
               {/* Telefone */}
@@ -433,11 +442,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
-                {filteredDoctors.length === 0 && (
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Nenhum médico disponível para a unidade selecionada.
-                  </p>
-                )}
               </div>
 
               {/* Tipo de exame */}
@@ -460,8 +464,12 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                     {filteredExamTypes.length > 0 ? (
                       filteredExamTypes.map((type) => (
                         <SelectItem key={type.id} value={type.id}>
-                          {type.name}
-                          {type.category && ` - ${type.category}`}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{type.name}</span>
+                            {type.category && (
+                              <span className="text-sm text-neutral-500">{type.category}</span>
+                            )}
+                          </div>
                         </SelectItem>
                       ))
                     ) : (
@@ -471,11 +479,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                     )}
                   </SelectContent>
                 </Select>
-                {selectedDoctor && filteredExamTypes.length === 0 && (
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Nenhum exame disponível para a especialidade do médico selecionado.
-                  </p>
-                )}
               </div>
 
               {/* Data */}
@@ -581,7 +584,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         </CardContent>
       </Card>
 
-      {/* Validação de Materiais */}
       <MaterialValidation 
         validation={materialValidation} 
         loading={loadingMaterials} 
