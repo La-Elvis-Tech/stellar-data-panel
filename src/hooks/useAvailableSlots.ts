@@ -1,13 +1,14 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { addDays, format, isAfter, isBefore, startOfDay, getDay } from 'date-fns';
+import { addDays, format, isAfter, isBefore, startOfDay, getDay, isSameDay } from 'date-fns';
 
 interface TimeSlot {
   time: string;
   available: boolean;
   doctorName?: string;
   doctorId?: string;
+  hasConflict?: boolean;
 }
 
 interface Doctor {
@@ -28,7 +29,7 @@ export const useAvailableSlots = () => {
 
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 9; hour < 19; hour++) {
+    for (let hour = 7; hour < 19; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         slots.push(timeString);
@@ -37,7 +38,7 @@ export const useAvailableSlots = () => {
     return slots;
   };
 
-  // Horários padrão baseados no médico (temporário até implementar tabela doctor_schedules)
+  // Horários padrão baseados no médico
   const getDefaultDoctorSchedules = (doctorId: string): DoctorSchedule[] => {
     const scheduleMap: Record<string, DoctorSchedule[]> = {
       // Dr. João Silva (Cardiologia) - Segunda a Sexta, 8:00-17:00
@@ -58,7 +59,6 @@ export const useAvailableSlots = () => {
       ],
     };
 
-    // Se o médico não estiver no mapa, usar horário padrão
     return scheduleMap[doctorId] || [
       { day_of_week: 1, start_time: '09:00', end_time: '18:00', is_available: true },
       { day_of_week: 2, start_time: '09:00', end_time: '18:00', is_available: true },
@@ -100,14 +100,19 @@ export const useAvailableSlots = () => {
       const nextDay = addDays(targetDate, 1);
 
       console.log('Fetching appointments for date:', targetDate.toISOString());
+      console.log('Available doctors:', doctors.length);
 
+      // Buscar agendamentos reais do Supabase
       const { data: appointments, error: appointmentsError } = await supabase
         .from('appointments')
         .select(`
+          id,
           scheduled_date,
           duration_minutes,
           doctor_id,
-          doctors(name)
+          status,
+          patient_name,
+          doctors(name, specialty)
         `)
         .gte('scheduled_date', targetDate.toISOString())
         .lt('scheduled_date', nextDay.toISOString())
@@ -137,25 +142,43 @@ export const useAvailableSlots = () => {
 
           const isDoctorWorking = isDoctorAvailableAtTime(doctorSchedules, date, timeSlot);
           
-          if (!isDoctorWorking) continue;
+          // Verificar conflitos com agendamentos reais
+          let hasConflict = false;
+          let isOccupied = false;
 
-          const isOccupied = appointments?.some(apt => {
-            if (apt.doctor_id !== doctor.id) return false;
-            
-            const aptDate = new Date(apt.scheduled_date);
-            const aptEndTime = new Date(aptDate.getTime() + (apt.duration_minutes * 60000));
-            
-            return (
-              (isAfter(slotDateTime, aptDate) || slotDateTime.getTime() === aptDate.getTime()) &&
-              isBefore(slotDateTime, aptEndTime)
-            );
-          });
+          if (isDoctorWorking) {
+            hasConflict = appointments?.some(apt => {
+              if (apt.doctor_id !== doctor.id) return false;
+              
+              const aptDate = new Date(apt.scheduled_date);
+              const aptTime = aptDate.toTimeString().slice(0, 5);
+              
+              return isSameDay(aptDate, date) && 
+                     aptTime === timeSlot && 
+                     apt.status !== 'Cancelado';
+            }) || false;
 
+            isOccupied = appointments?.some(apt => {
+              if (apt.doctor_id !== doctor.id) return false;
+              
+              const aptDate = new Date(apt.scheduled_date);
+              const aptEndTime = new Date(aptDate.getTime() + ((apt.duration_minutes || 30) * 60000));
+              
+              return (
+                (isAfter(slotDateTime, aptDate) || slotDateTime.getTime() === aptDate.getTime()) &&
+                isBefore(slotDateTime, aptEndTime) &&
+                apt.status !== 'Cancelado'
+              );
+            }) || false;
+          }
+
+          // Adicionar o slot
           availableSlots.push({
             time: timeSlot,
-            available: !isOccupied,
+            available: isDoctorWorking && !isOccupied && !hasConflict,
             doctorName: doctor.name,
             doctorId: doctor.id,
+            hasConflict: hasConflict || isOccupied || !isDoctorWorking
           });
         }
       }

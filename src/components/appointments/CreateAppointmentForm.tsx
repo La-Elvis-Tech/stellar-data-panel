@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, User, Stethoscope, DollarSign, Plus, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Stethoscope, DollarSign, Plus, X, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSupabaseAppointments, type MaterialValidation as MaterialValidationType } from '@/hooks/useSupabaseAppointments';
 import { useAppointmentLogic } from '@/hooks/useAppointmentLogic';
 import { useAuthContext } from '@/context/AuthContext';
@@ -49,10 +51,12 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
   const {
     selectedDoctor,
     selectedExamType,
+    selectedUnit,
     filteredDoctors,
     filteredExamTypes,
     handleDoctorChange,
-    handleExamTypeChange
+    handleExamTypeChange,
+    handleUnitChange
   } = useAppointmentLogic();
 
   const { profile, isAdmin, isSupervisor } = useAuthContext();
@@ -62,37 +66,93 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
   const [materialValidation, setMaterialValidation] = useState<MaterialValidationType | null>(null);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   
+  // Pré-definir data com ano 2025
+  const getDefaultDate = () => {
+    const today = new Date();
+    const defaultDate = new Date(2025, today.getMonth(), today.getDate());
+    return defaultDate.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
     patient_name: '',
     patient_email: '',
     patient_phone: '',
-    date: prefilledData?.date || '',
+    date: prefilledData?.date || getDefaultDate(),
     time: prefilledData?.time || '',
-    unit_id: profile?.unit_id || '',
     duration_minutes: 30,
     cost: 0,
     notes: ''
   });
 
-  // Unidades disponíveis baseadas no perfil do usuário
-  const availableUnits = React.useMemo(() => {
-    // Se é admin/supervisor, pode escolher qualquer unidade
-    if (isAdmin() || isSupervisor()) {
-      return []; // Será preenchido pelo hook useSupabaseAppointments
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Validação de email
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Formatação de telefone
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 10) {
+      return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    } else {
+      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
     }
-    // Usuário comum só pode agendar na sua unidade
-    return profile?.unit_id ? [{ id: profile.unit_id, name: 'Sua Unidade', code: '' }] : [];
-  }, [profile?.unit_id, isAdmin, isSupervisor]);
+  };
+
+  // Validar formulário
+  const validateForm = () => {
+    const errors: string[] = [];
+
+    if (!formData.patient_name.trim()) {
+      errors.push('Nome do paciente é obrigatório');
+    }
+
+    if (formData.patient_email && !isValidEmail(formData.patient_email)) {
+      errors.push('Email deve ter um formato válido (exemplo@dominio.com)');
+    }
+
+    // Verificar unidade - sempre necessária
+    const unitToUse = selectedUnit || profile?.unit_id;
+    if (!unitToUse) {
+      errors.push('Unidade é obrigatória');
+    }
+
+    if (!selectedDoctor) {
+      errors.push('Selecione um médico');
+    }
+
+    if (!selectedExamType) {
+      errors.push('Selecione um tipo de exame');
+    }
+
+    if (!formData.date) {
+      errors.push('Selecione uma data');
+    }
+
+    if (!formData.time) {
+      errors.push('Selecione um horário');
+    }
+
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
 
   // Atualizar formulário quando prefilledData mudar
   useEffect(() => {
     if (prefilledData) {
+      console.log('Prefilled data received:', prefilledData);
       setFormData(prev => ({
         ...prev,
         date: prefilledData.date,
         time: prefilledData.time,
       }));
-      handleDoctorChange(prefilledData.doctorId);
+      // Selecionar médico primeiro
+      if (prefilledData.doctorId) {
+        handleDoctorChange(prefilledData.doctorId);
+      }
     }
   }, [prefilledData, handleDoctorChange]);
 
@@ -102,7 +162,10 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       setLoadingMaterials(true);
       calculateExamMaterials(selectedExamType)
         .then(setMaterialValidation)
-        .catch(() => setMaterialValidation(null))
+        .catch((error) => {
+          console.warn('Could not calculate materials:', error);
+          setMaterialValidation(null);
+        })
         .finally(() => setLoadingMaterials(false));
     } else {
       setMaterialValidation(null);
@@ -112,20 +175,17 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Verificar se os materiais foram validados
-    if (!materialValidation) {
+    console.log('Form submission started');
+    console.log('Form data:', formData);
+    console.log('Selected doctor:', selectedDoctor);
+    console.log('Selected exam type:', selectedExamType);
+    console.log('Selected unit:', selectedUnit);
+    console.log('Profile unit:', profile?.unit_id);
+    
+    if (!validateForm()) {
       toast({
-        title: "Selecione um tipo de exame",
-        description: "É necessário selecionar um tipo de exame para continuar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!materialValidation.canSchedule) {
-      toast({
-        title: "Materiais insuficientes",
-        description: "Não é possível agendar devido a materiais insuficientes. Verifique o estoque.",
+        title: "Formulário incompleto",
+        description: "Corrija os erros listados para continuar.",
         variant: "destructive",
       });
       return;
@@ -134,20 +194,37 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     setIsCreating(true);
 
     try {
+      const unitToUse = selectedUnit || profile?.unit_id;
+      
+      if (!unitToUse) {
+        throw new Error('Unidade não definida');
+      }
+
+      console.log('Creating appointment with unit:', unitToUse);
+
       const appointmentDate = new Date(`${formData.date}T${formData.time}`);
       
-      await createAppointment({
+      const appointmentData = {
         patient_name: formData.patient_name,
         patient_email: formData.patient_email || undefined,
         patient_phone: formData.patient_phone || undefined,
-        exam_type_id: selectedExamType,
-        doctor_id: selectedDoctor,
-        unit_id: formData.unit_id,
+        exam_type_id: selectedExamType!,
+        doctor_id: selectedDoctor!,
+        unit_id: unitToUse,
         scheduled_date: appointmentDate.toISOString(),
         duration_minutes: formData.duration_minutes,
         cost: formData.cost || undefined,
         notes: formData.notes || undefined,
-        status: 'Agendado'
+        status: 'Agendado' as const
+      };
+
+      console.log('Appointment data to create:', appointmentData);
+
+      await createAppointment(appointmentData);
+
+      toast({
+        title: "Agendamento criado com sucesso!",
+        description: `Consulta marcada para ${formData.date} às ${formData.time}`,
       });
 
       onAppointmentCreated?.();
@@ -157,9 +234,8 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         patient_name: '',
         patient_email: '',
         patient_phone: '',
-        date: '',
+        date: getDefaultDate(),
         time: '',
-        unit_id: profile?.unit_id || '',
         duration_minutes: 30,
         cost: 0,
         notes: ''
@@ -167,28 +243,44 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       handleDoctorChange('');
       handleExamTypeChange('');
       setMaterialValidation(null);
+      setValidationErrors([]);
 
-    } catch (error) {
-      // Error handling is done in the hook
+    } catch (error: any) {
+      console.error('Erro ao criar agendamento:', error);
+      const errorMessage = error?.message || 'Erro desconhecido';
+      
+      toast({
+        title: "Erro ao criar agendamento",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsCreating(false);
     }
   };
 
   const handleInputChange = (field: string, value: string | number) => {
+    if (field === 'patient_phone' && typeof value === 'string') {
+      value = formatPhone(value);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+
+    // Revalidar quando campos mudarem
+    if (validationErrors.length > 0) {
+      setTimeout(validateForm, 100);
+    }
   };
 
-  const canSubmit = materialValidation?.canSchedule && 
-    formData.patient_name && 
-    selectedExamType && 
-    formData.date && 
-    formData.time && 
-    selectedDoctor && 
-    formData.unit_id;
+  // Filtrar unidades válidas
+  const validUnits = units.filter(unit => 
+    unit.id && 
+    unit.name && 
+    unit.name.trim() !== ''
+  );
 
   return (
     <div className="space-y-6">
@@ -220,6 +312,21 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
           </div>
         </CardHeader>
         <CardContent className="p-6">
+          {/* Mostrar erros de validação */}
+          {validationErrors.length > 0 && (
+            <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <AlertDescription className="text-red-800 dark:text-red-200">
+                <div className="font-medium mb-2">Corrija os seguintes problemas:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {validationErrors.map((error, index) => (
+                    <li key={index} className="text-sm">{error}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Paciente */}
@@ -232,9 +339,11 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   id="patient_name"
                   value={formData.patient_name}
                   onChange={(e) => handleInputChange('patient_name', e.target.value)}
-                  placeholder="Nome do paciente"
+                  placeholder="Nome completo do paciente"
                   required
-                  className="border-neutral-200 dark:border-neutral-700"
+                  className={`border-neutral-200 dark:border-neutral-700 ${
+                    validationErrors.some(e => e.includes('Nome do paciente')) ? 'border-red-500' : ''
+                  }`}
                 />
               </div>
 
@@ -248,9 +357,16 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   type="email"
                   value={formData.patient_email}
                   onChange={(e) => handleInputChange('patient_email', e.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="border-neutral-200 dark:border-neutral-700"
+                  placeholder="exemplo@dominio.com"
+                  className={`border-neutral-200 dark:border-neutral-700 ${
+                    validationErrors.some(e => e.includes('Email')) ? 'border-red-500' : ''
+                  }`}
                 />
+                {formData.patient_email && !isValidEmail(formData.patient_email) && (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    Formato de email inválido
+                  </p>
+                )}
               </div>
 
               {/* Telefone */}
@@ -263,9 +379,34 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   value={formData.patient_phone}
                   onChange={(e) => handleInputChange('patient_phone', e.target.value)}
                   placeholder="(11) 99999-9999"
+                  maxLength={15}
                   className="border-neutral-200 dark:border-neutral-700"
                 />
               </div>
+
+              {/* Unidade - mostrar se usuário pode escolher */}
+              {(isAdmin() || isSupervisor()) && (
+                <div className="space-y-2">
+                  <Label htmlFor="unit_id" className="flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <MapPin className="h-4 w-4" />
+                    Unidade *
+                  </Label>
+                  <Select value={selectedUnit} onValueChange={handleUnitChange}>
+                    <SelectTrigger className={`border-neutral-200 dark:border-neutral-700 ${
+                      validationErrors.some(e => e.includes('unidade')) ? 'border-red-500' : ''
+                    }`}>
+                      <SelectValue placeholder="Selecione a unidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {validUnits.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>
+                          {unit.name} ({unit.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Médico */}
               <div className="space-y-2">
@@ -274,7 +415,9 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   Médico *
                 </Label>
                 <Select value={selectedDoctor} onValueChange={handleDoctorChange}>
-                  <SelectTrigger className="border-neutral-200 dark:border-neutral-700">
+                  <SelectTrigger className={`border-neutral-200 dark:border-neutral-700 ${
+                    validationErrors.some(e => e.includes('médico')) ? 'border-red-500' : ''
+                  }`}>
                     <SelectValue placeholder="Selecione o médico" />
                   </SelectTrigger>
                   <SelectContent>
@@ -292,7 +435,7 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                 </Select>
                 {filteredDoctors.length === 0 && (
                   <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Nenhum médico disponível para sua unidade.
+                    Nenhum médico disponível para a unidade selecionada.
                   </p>
                 )}
               </div>
@@ -308,21 +451,29 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   onValueChange={handleExamTypeChange}
                   disabled={!selectedDoctor}
                 >
-                  <SelectTrigger className="border-neutral-200 dark:border-neutral-700">
-                    <SelectValue placeholder="Selecione o tipo" />
+                  <SelectTrigger className={`border-neutral-200 dark:border-neutral-700 ${
+                    validationErrors.some(e => e.includes('exame')) ? 'border-red-500' : ''
+                  }`}>
+                    <SelectValue placeholder={selectedDoctor ? "Selecione o tipo" : "Selecione um médico primeiro"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredExamTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                        {type.category && ` - ${type.category}`}
+                    {filteredExamTypes.length > 0 ? (
+                      filteredExamTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                          {type.category && ` - ${type.category}`}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-exams" disabled>
+                        Nenhum exame disponível
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
                 {selectedDoctor && filteredExamTypes.length === 0 && (
                   <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Nenhum exame disponível para esta especialidade.
+                    Nenhum exame disponível para a especialidade do médico selecionado.
                   </p>
                 )}
               </div>
@@ -338,8 +489,11 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   type="date"
                   value={formData.date}
                   onChange={(e) => handleInputChange('date', e.target.value)}
+                  min="2025-01-01"
                   required
-                  className="border-neutral-200 dark:border-neutral-700"
+                  className={`border-neutral-200 dark:border-neutral-700 ${
+                    validationErrors.some(e => e.includes('data')) ? 'border-red-500' : ''
+                  }`}
                 />
               </div>
 
@@ -355,31 +509,11 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
                   value={formData.time}
                   onChange={(e) => handleInputChange('time', e.target.value)}
                   required
-                  className="border-neutral-200 dark:border-neutral-700"
+                  className={`border-neutral-200 dark:border-neutral-700 ${
+                    validationErrors.some(e => e.includes('horário')) ? 'border-red-500' : ''
+                  }`}
                 />
               </div>
-
-              {/* Unidade - só mostra se usuário pode escolher */}
-              {(isAdmin() || isSupervisor()) && (
-                <div className="space-y-2">
-                  <Label htmlFor="unit_id" className="flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    <MapPin className="h-4 w-4" />
-                    Unidade *
-                  </Label>
-                  <Select value={formData.unit_id} onValueChange={(value) => handleInputChange('unit_id', value)}>
-                    <SelectTrigger className="border-neutral-200 dark:border-neutral-700">
-                      <SelectValue placeholder="Selecione a unidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {units.map((unit) => (
-                        <SelectItem key={unit.id} value={unit.id}>
-                          {unit.name} ({unit.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
               {/* Custo */}
               <div className="space-y-2">
@@ -427,7 +561,7 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
               )}
               <Button
                 type="submit"
-                disabled={isCreating || !canSubmit}
+                disabled={isCreating}
                 className="bg-neutral-900 hover:bg-neutral-800 text-white px-6 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
               >
                 {isCreating ? (

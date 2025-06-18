@@ -1,20 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { format, startOfWeek, endOfWeek, addDays, isSameDay, isToday, isAfter, startOfToday } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock,
-  Users 
-} from 'lucide-react';
+import { addDays, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { SupabaseAppointment } from '@/hooks/useSupabaseAppointments';
-import AvailableTimesGrid from './AvailableTimesGrid';
+import WeeklyCalendarHeader from './WeeklyCalendarHeader';
+import WeeklyCalendarDay from './WeeklyCalendarDay';
+import EnhancedAvailableTimesGrid from './EnhancedAvailableTimesGrid';
 import { useAvailableSlots } from '@/hooks/useAvailableSlots';
 import { useDoctors } from '@/hooks/useDoctors';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface AppointmentCalendarProps {
   appointments: SupabaseAppointment[];
@@ -29,48 +22,44 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
 }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedDoctor, setSelectedDoctor] = useState<string>('');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [timeSlots, setTimeSlots] = useState<any[]>([]);
   
   const { getAvailableSlots } = useAvailableSlots();
-  const { doctors } = useDoctors();
+  const { doctors, loading: doctorsLoading } = useDoctors();
+
+  console.log('AppointmentCalendar - doctors loaded:', doctors.length);
+  console.log('AppointmentCalendar - appointments loaded:', appointments.length);
 
   useEffect(() => {
     if (selectedDate && doctors.length > 0) {
+      console.log('Loading slots for date:', selectedDate, 'with doctors:', doctors.length);
       loadAvailableSlots();
     }
-  }, [selectedDate, selectedDoctor, doctors]);
+  }, [selectedDate, doctors, appointments]);
 
   const loadAvailableSlots = async () => {
-    if (!selectedDate || doctors.length === 0) return;
-    
-    const slots = await getAvailableSlots(selectedDate, doctors, selectedDoctor);
-    setTimeSlots(slots);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Agendado': return 'bg-blue-500 text-white';
-      case 'Confirmado': return 'bg-emerald-500 text-white';
-      case 'Em andamento': return 'bg-amber-500 text-white';
-      case 'Concluído': return 'bg-gray-500 text-white';
-      case 'Cancelado': return 'bg-red-500 text-white';
-      default: return 'bg-gray-400 text-white';
+    if (!selectedDate || doctors.length === 0) {
+      console.log('Skipping slot loading - no date or doctors');
+      return;
     }
-  };
-
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
-  const getAppointmentsForDate = (date: Date) => {
-    return appointments.filter(appointment => 
-      isSameDay(new Date(appointment.scheduled_date), date)
-    );
+    
+    console.log('Loading slots for all doctors on date:', selectedDate);
+    
+    try {
+      const slots = await getAvailableSlots(selectedDate, doctors);
+      console.log('Total slots loaded:', slots.length);
+      setTimeSlots(slots);
+    } catch (error) {
+      console.error('Error loading available slots:', error);
+      setTimeSlots([]);
+    }
   };
 
   const handleSelectTime = (time: string, doctorId?: string) => {
     if (!selectedDate) return;
+    
+    setSelectedTimeSlot(time);
     
     const [hour, minute] = time.split(':').map(Number);
     const startTime = new Date(selectedDate);
@@ -78,6 +67,8 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
     
     const endTime = new Date(startTime.getTime() + (30 * 60000));
     const doctorName = doctors.find(d => d.id === doctorId)?.name;
+    
+    console.log('Time slot selected:', { time, doctorId, doctorName });
     
     onSelectSlot?.({
       start: startTime,
@@ -90,137 +81,94 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     setCurrentWeek(prev => addDays(prev, direction === 'next' ? 7 : -7));
+    setSelectedDate(null);
+    setSelectedTimeSlot('');
   };
 
-  const formatDoctorName = (name: string) => {
-    const parts = name.split(' ');
-    if (parts.length === 1) return name;
-    return `Dr. ${parts[0]} ${parts[parts.length - 1]}`;
+  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments.filter(appointment => 
+      isSameDay(new Date(appointment.scheduled_date), date)
+    );
   };
+
+  if (doctorsLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+              <p className="text-neutral-500 dark:text-neutral-400">
+                Carregando médicos da unidade...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (doctors.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <p className="text-neutral-900 dark:text-neutral-100 text-lg font-medium mb-2">
+                Nenhum médico encontrado
+              </p>
+              <p className="text-neutral-500 dark:text-neutral-400">
+                Não há médicos cadastrados para esta unidade.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Calendário Semanal */}
       <Card className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 shadow-sm">
         <CardHeader className="pb-4 border-b border-neutral-100 dark:border-neutral-800">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-medium text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-              <div className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg hidden md:inline">
-                <CalendarIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400 hidden md:inline" />
-              </div>
-              <div className="pr-2">
-                <div className="text-base">Calendário Semanal</div>
-                <div className="text-xs font-normal text-neutral-500 dark:text-neutral-400">
-                  Selecione uma data para ver horários disponíveis
-                </div>
-              </div>
-            </CardTitle>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateWeek('prev')}
-                className="h-8 w-8 p-0 border-neutral-200 dark:border-neutral-700"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              
-              <span className="text-xs md:text-sm font-medium sm:-mx-4 md:px-0 xl:px-4 text-neutral-700 dark:text-neutral-300 min-w-[140px] text-center">
-                {format(weekStart, 'dd/MM', { locale: ptBR })} - {format(weekEnd, 'dd/MM/yyyy', { locale: ptBR })}
-              </span>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateWeek('next')}
-                className="h-8 w-8 p-0 border-neutral-200 dark:border-neutral-700"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <WeeklyCalendarHeader 
+            currentWeek={currentWeek}
+            onNavigateWeek={navigateWeek}
+          />
         </CardHeader>
         
         <CardContent className="p-4">
           <div className="grid sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
             {weekDays.map((day) => {
               const dayAppointments = getAppointmentsForDate(day);
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-              const isPast = !isAfter(day, startOfToday()) && !isToday(day);
               
               return (
-                <div
+                <WeeklyCalendarDay
                   key={day.toISOString()}
-                  className={`
-                    p-3 rounded-xl cursor-pointer transition-all duration-200 min-h-[90px] border-2
-                    ${isSelected 
-                      ? 'bg-neutral-50 border-neutral-300 dark:bg-neutral-800 dark:border-neutral-600 shadow-sm' 
-                      : 'bg-neutral-25 border-neutral-150 hover:bg-neutral-50 hover:border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 dark:hover:bg-neutral-800'
-                    }
-                    ${isPast ? 'opacity-40 cursor-not-allowed' : ''}
-                    ${isToday(day) ? 'ring-2 ring-blue-200 dark:ring-blue-800' : ''}
-                  `}
-                  onClick={() => !isPast && setSelectedDate(day)}
-                >
-                  <div className="text-center mb-0">
-                    <div className="text-xs text-neutral-500 dark:text-neutral-400 uppercase font-medium">
-                      {format(day, 'EEE', { locale: ptBR })}
-                    </div>
-                    <div className={`text-lg font-semibold mt-1 ${
-                      isToday(day) 
-                        ? 'text-blue-600 dark:text-blue-400' 
-                        : 'text-neutral-900 dark:text-neutral-100'
-                    }`}>
-                      {format(day, 'd')}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    {dayAppointments.slice(0, 2).map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className={`text-xs p-1.5 rounded-lg text-center cursor-pointer transition-all ${getStatusColor(appointment.status)} hover:shadow-sm`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectAppointment?.(appointment);
-                        }}
-                      >
-                        <div className="font-medium">
-                          {format(new Date(appointment.scheduled_date), 'HH:mm')}
-                        </div>
-                        <div className="truncate text-xs opacity-90">
-                          {appointment.patient_name}
-                        </div>
-                      </div>
-                    ))}
-                    {dayAppointments.length > 2 && (
-                      <div className="text-xs text-center text-neutral-500 dark:text-neutral-400 font-medium bg-neutral-100 dark:bg-neutral-800 rounded-lg py-1">
-                        +{dayAppointments.length - 2} mais
-                      </div>
-                    )}
-                    {dayAppointments.length === 0 && !isPast && (
-                      <div className="text-xs text-center text-neutral-400 dark:text-neutral-500 py-1">
-                        Disponível
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  day={day}
+                  appointments={dayAppointments}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  onSelectAppointment={onSelectAppointment}
+                />
               );
             })}
           </div>
         </CardContent>
       </Card>
 
-      {/* Grade de Horários Disponíveis */}
       {selectedDate && doctors.length > 0 && (
-        <AvailableTimesGrid
+        <EnhancedAvailableTimesGrid
           selectedDate={selectedDate}
           timeSlots={timeSlots}
           onSelectTime={handleSelectTime}
-          selectedDoctor={selectedDoctor}
+          selectedDoctor=""
           doctors={doctors}
-          onDoctorChange={setSelectedDoctor}
+          onDoctorChange={() => {}}
+          selectedTimeSlot={selectedTimeSlot}
         />
       )}
     </div>
