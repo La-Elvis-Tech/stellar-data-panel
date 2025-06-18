@@ -181,12 +181,12 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     setIsCreating(true);
 
     try {
-      // Determinar a unidade - lógica simplificada
+      // Determinar a unidade - lógica melhorada
       let unitToUse: string;
       
       if (isAdmin() || isSupervisor()) {
         // Admin/supervisor pode escolher qualquer unidade
-        unitToUse = selectedUnit || profile?.unit_id || (units.length > 0 ? units[0].id : '');
+        unitToUse = selectedUnit || profile?.unit_id || '';
       } else {
         // Usuário comum usa sempre sua própria unidade
         unitToUse = profile?.unit_id || '';
@@ -196,10 +196,29 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         throw new Error('Não foi possível determinar a unidade para o agendamento.');
       }
 
+      // Verificar se o médico selecionado existe e é válido
+      const selectedDoctorData = filteredDoctors.find(d => d.id === selectedDoctor);
+      if (!selectedDoctorData) {
+        throw new Error('Médico selecionado não é válido.');
+      }
+
+      // Verificar se o tipo de exame selecionado existe e é válido
+      const selectedExamTypeData = filteredExamTypes.find(e => e.id === selectedExamType);
+      if (!selectedExamTypeData) {
+        throw new Error('Tipo de exame selecionado não é válido.');
+      }
+
       console.log('Creating appointment with unit:', unitToUse);
+      console.log('Doctor:', selectedDoctorData);
+      console.log('Exam type:', selectedExamTypeData);
 
       const appointmentDate = new Date(`${formData.date}T${formData.time}`);
       
+      // Verificar se a data é válida
+      if (isNaN(appointmentDate.getTime())) {
+        throw new Error('Data ou horário inválido.');
+      }
+
       const appointmentData = {
         patient_name: formData.patient_name.trim(),
         patient_email: formData.patient_email.trim() || null,
@@ -221,7 +240,7 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
 
       toast({
         title: "Agendamento criado com sucesso!",
-        description: `Consulta marcada para ${formData.date} às ${formData.time}`,
+        description: `Consulta marcada para ${formData.date} às ${formData.time} com Dr. ${selectedDoctorData.name}`,
       });
 
       onAppointmentCreated?.();
@@ -251,7 +270,9 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         if (error.message.includes('violates row-level security')) {
           errorMessage = 'Você não tem permissão para criar agendamentos nesta unidade';
         } else if (error.message.includes('Estoque insuficiente')) {
-          errorMessage = error.message.replace('Estoque insuficiente: ', '');
+          errorMessage = error.message;
+        } else if (error.message.includes('structure of query does not match function result type')) {
+          errorMessage = 'Erro na estrutura da consulta. Verifique os dados inseridos.';
         } else {
           errorMessage = error.message;
         }
