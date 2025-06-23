@@ -20,19 +20,22 @@ const ExamsStats: React.FC<ExamsStatsProps> = ({ examTypes }) => {
       title: "Total de Exames",
       value: totalExams.toString(),
       icon: Package,
-      color: 'text-neutral-600 dark:text-neutral-400',
+      color: 'text-neutral-500',
+      bgColor: 'bg-neutral-50 dark:bg-neutral-800/40',
     },
     {
       title: "Exames Ativos",
       value: activeExams.toString(),
       icon: Activity,
-      color: 'text-emerald-600 dark:text-emerald-400',
+      color: 'text-emerald-500',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-950/20',
     },
     {
       title: "Categorias",
       value: categories.toString(),
       icon: Clock,
-      color: 'text-blue-600 dark:text-blue-400',
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-50 dark:bg-blue-950/20',
     },
     {
       title: "Custo Médio",
@@ -41,27 +44,28 @@ const ExamsStats: React.FC<ExamsStatsProps> = ({ examTypes }) => {
         currency: 'BRL'
       }).format(avgCost),
       icon: TrendingUp,
-      color: 'text-indigo-600 dark:text-indigo-400',
+      color: 'text-indigo-500',
+      bgColor: 'bg-indigo-50 dark:bg-indigo-950/20',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((stat, index) => (
         <Card 
           key={index}
-          className="border-0 bg-white/40 dark:bg-neutral-900/20 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200"
+          className="border-0 shadow-sm bg-white/60 dark:bg-neutral-900/40 backdrop-blur-sm"
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-neutral-50/80 dark:bg-neutral-800/40">
+              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">
                   {stat.title}
                 </p>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
                   {stat.value}
                 </p>
               </div>
