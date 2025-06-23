@@ -65,7 +65,7 @@ const ExamsStats: React.FC<ExamsStatsProps> = ({ examTypes }) => {
                 <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">
                   {stat.title}
                 </p>
-                <p className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                <p className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
                   {stat.value}
                 </p>
               </div>

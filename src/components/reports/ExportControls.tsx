@@ -165,7 +165,7 @@ const ExportControls: React.FC<ExportControlsProps> = ({
                         {option.label}
                       </label>
                     </div>
-                    <Badge className="text-xs bg-neutral-100 text-neutral-700 border-neutral-200">
+                    <Badge className="text-xs bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700">
                       {option.count} registros
                     </Badge>
                   </div>
@@ -227,7 +227,7 @@ const ExportControls: React.FC<ExportControlsProps> = ({
                   return option ? (
                     <Badge 
                       key={type}
-                      className="text-xs bg-blue-100 text-blue-700 border-blue-200"
+                      className="text-xs bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-800"
                     >
                       {option.label} ({option.count})
                     </Badge>
