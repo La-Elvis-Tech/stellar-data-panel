@@ -186,7 +186,7 @@ const DashboardStats: React.FC = () => {
             >
               <div className="flex flex-col space-y-3">
                 <div className="flex items-center justify-between">
-                  <stat.icon className="h-5 w-5 text-neutral-500 dark:text-neutral-400" />
+                  <stat.icon className="h-5 w-5" />
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     stat.change.includes('+') ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                     stat.change.includes('-') ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :

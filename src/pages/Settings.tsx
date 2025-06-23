@@ -53,7 +53,7 @@ const Settings = () => {
   };
 
   return (
-    <div ref={pageRef} className="min-h-screen bg-neutral-50/30 dark:bg-neutral-950/30">
+    <div ref={pageRef} className="min-h-screen ">
       <div className="p-6 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -52,19 +52,6 @@ const Reports = () => {
     console.log(`Exporting ${dataTypes.join(', ')} in ${format} format`);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-50/30 dark:bg-neutral-950/30">
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-400 mx-auto"></div>
-            <p className="mt-4 text-neutral-500 dark:text-neutral-400">Carregando relatórios...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (!reportData || !metrics) {
     return (
       <div className="min-h-screen bg-neutral-50/30 dark:bg-neutral-950/30">
@@ -84,7 +71,7 @@ const Reports = () => {
   const { appointmentMetrics, inventoryMetrics, chartData } = metrics;
 
   return (
-    <div ref={pageRef} className="min-h-screen bg-neutral-50/30 dark:bg-neutral-950/30">
+    <div ref={pageRef} className="min-h-screen ">
       <div className="p-6 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <ReportsHeader

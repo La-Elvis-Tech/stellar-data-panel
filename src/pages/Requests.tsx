@@ -69,7 +69,7 @@ const Requests = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50/30 dark:bg-neutral-950/30">
+    <div className="min-h-screen">
       <div className="p-6 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
@@ -140,7 +140,7 @@ const Requests = () => {
         )}
 
         {/* Exams Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredExams.map((exam) => (
             <ExamDetailsCard
               key={exam.id}

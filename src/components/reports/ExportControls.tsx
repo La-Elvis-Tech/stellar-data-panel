@@ -189,14 +189,19 @@ const ExportControls: React.FC<ExportControlsProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-600 dark:text-neutral-400">Formato:</span>
                   <div className="flex items-center gap-2">
-                    {getSelectedFormat() && (
-                      <>
-                        <getSelectedFormat().icon className={`h-4 w-4 ${getSelectedFormat()?.color}`} />
-                        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                          {getSelectedFormat()?.label}
-                        </span>
-                      </>
-                    )}
+                    {(() => {
+                      const selectedFormatObj = getSelectedFormat();
+                      if (!selectedFormatObj) return null;
+                      const Icon = selectedFormatObj.icon;
+                      return (
+                        <>
+                          <Icon className={`h-4 w-4 ${selectedFormatObj.color}`} />
+                          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                            {selectedFormatObj.label}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 
