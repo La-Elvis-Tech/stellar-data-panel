@@ -75,13 +75,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointment_inventory_appointment_id_fkey"
-            columns: ["appointment_id"]
-            isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "appointment_inventory_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
             isOneToOne: false
@@ -380,13 +373,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "exam_results_appointment_id_fkey"
-            columns: ["appointment_id"]
-            isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "exam_results_doctor_id_fkey"
             columns: ["doctor_id"]
