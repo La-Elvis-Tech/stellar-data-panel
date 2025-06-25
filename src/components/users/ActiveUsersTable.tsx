@@ -29,24 +29,42 @@ const ActiveUsersTable = () => {
   const { data: activeUsers, isLoading } = useQuery({
     queryKey: ['active-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          units (
-            id,
-            name,
-            code
-          ),
-          user_roles (
-            role
-          )
-        `)
+        .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
+      if (profilesError) throw profilesError;
+
+      // Then get units separately
+      const { data: unitsData, error: unitsError } = await supabase
+        .from('units')
+        .select('id, name, code');
+
+      if (unitsError) throw unitsError;
+
+      // Then get user roles separately
+      const { data: userRolesData, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (userRolesError) throw userRolesError;
+
+      // Combine the data manually
+      const combinedData = profilesData?.map(profile => {
+        const unit = unitsData?.find(u => u.id === profile.unit_id);
+        const userRoles = userRolesData?.filter(ur => ur.user_id === profile.id) || [];
+        
+        return {
+          ...profile,
+          units: unit || null,
+          user_roles: userRoles
+        };
+      }) || [];
+
+      return combinedData;
     },
   });
 
@@ -56,7 +74,7 @@ const ActiveUsersTable = () => {
       user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = roleFilter === 'all' || 
-      user.user_roles?.some(ur => ur.role === roleFilter);
+      (user.user_roles && Array.isArray(user.user_roles) && user.user_roles.some(ur => ur.role === roleFilter));
 
     return matchesSearch && matchesRole;
   });
@@ -86,7 +104,7 @@ const ActiveUsersTable = () => {
   };
 
   const getRoleBadge = (userRoles: any[]) => {
-    if (!userRoles || userRoles.length === 0) {
+    if (!userRoles || !Array.isArray(userRoles) || userRoles.length === 0) {
       return (
         <Badge className="text-xs bg-neutral-100 text-neutral-700 border-neutral-200">
           Usuário
@@ -97,13 +115,13 @@ const ActiveUsersTable = () => {
     const role = userRoles[0].role;
     const colors = {
       admin: 'bg-red-100 text-red-700 border-red-200',
-      moderator: 'bg-blue-100 text-blue-700 border-blue-200',
+      supervisor: 'bg-blue-100 text-blue-700 border-blue-200',
       user: 'bg-neutral-100 text-neutral-700 border-neutral-200'
     };
 
     const labels = {
       admin: 'Admin',
-      moderator: 'Moderador',
+      supervisor: 'Supervisor',
       user: 'Usuário'
     };
 
@@ -161,7 +179,7 @@ const ActiveUsersTable = () => {
               <SelectContent className="border-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm">
                 <SelectItem value="all">Todos os papéis</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="moderator">Moderador</SelectItem>
+                <SelectItem value="supervisor">Supervisor</SelectItem>
                 <SelectItem value="user">Usuário</SelectItem>
               </SelectContent>
             </Select>

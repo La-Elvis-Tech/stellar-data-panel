@@ -23,21 +23,33 @@ const PendingUsersTable = () => {
   const { data: pendingUsers, isLoading } = useQuery({
     queryKey: ['pending-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          units (
-            id,
-            name,
-            code
-          )
-        `)
+        .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
+      if (profilesError) throw profilesError;
+
+      // Then get units separately
+      const { data: unitsData, error: unitsError } = await supabase
+        .from('units')
+        .select('id, name, code');
+
+      if (unitsError) throw unitsError;
+
+      // Combine the data manually
+      const combinedData = profilesData?.map(profile => {
+        const unit = unitsData?.find(u => u.id === profile.unit_id);
+        
+        return {
+          ...profile,
+          units: unit || null
+        };
+      }) || [];
+
+      return combinedData;
     },
   });
 
@@ -70,7 +82,7 @@ const PendingUsersTable = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ status: 'rejected' })
+        .update({ status: 'inactive' })
         .eq('id', userId);
 
       if (error) throw error;
