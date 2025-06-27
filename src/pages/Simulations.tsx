@@ -169,7 +169,7 @@ const Simulations = () => {
 
   return (
     <div ref={containerRef} className="min-h-screen">
-      <div className="p-6 max-w-7xl mx-auto space-y-8 simulation-container">
+      <div className="p-2 md:p-6 max-w-7xl mx-auto space-y-8 simulation-container">
         {/* Header */}
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">

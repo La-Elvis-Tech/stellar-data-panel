@@ -72,7 +72,7 @@ const Reports = () => {
 
   return (
     <div ref={pageRef} className="min-h-screen ">
-      <div className="p-6 max-w-7xl mx-auto space-y-8">
+      <div className="p-2 md:p-6 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <ReportsHeader
           selectedUnit={selectedUnit}
