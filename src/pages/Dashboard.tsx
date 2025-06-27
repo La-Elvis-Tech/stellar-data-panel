@@ -22,7 +22,7 @@ const Dashboard: React.FC = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center p-8 bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800">
           <p className="text-neutral-600 dark:text-neutral-400">
             Você precisa estar logado para acessar o dashboard.
