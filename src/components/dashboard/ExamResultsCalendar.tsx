@@ -74,7 +74,7 @@ const ExamResultsCalendar: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Card className="bg-white/50 dark:bg-neutral-900/50 border border-neutral-200/50 dark:border-neutral-800/50 backdrop-blur-sm">
+      <Card className="bg-white dark:bg-neutral-900/50 border border-neutral-200/50 dark:border-neutral-800/50 backdrop-blur-sm">
         <div className="p-10">
           <div className="animate-pulse">
             <div className="h-4  bg-neutral-200 dark:bg-neutral-700 rounded mb-4 w-1/3"></div>
