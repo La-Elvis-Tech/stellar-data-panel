@@ -883,6 +883,19 @@ export type Database = {
           exam_details: Json
         }[]
       }
+      calculate_consumption_forecast: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          item_id: string
+          item_name: string
+          current_stock: number
+          predicted_weekly_consumption: number
+          predicted_daily_consumption: number
+          days_until_shortage: number
+          suggested_reorder_quantity: number
+          confidence_level: number
+        }[]
+      }
       calculate_detailed_exam_materials: {
         Args: { p_exam_type_id: string; p_blood_exams?: string[] }
         Returns: {

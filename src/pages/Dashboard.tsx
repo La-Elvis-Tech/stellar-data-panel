@@ -10,6 +10,7 @@ import SystemLogsPanel from "@/components/dashboard/SystemLogsPanel";
 import PredictiveInsights from "@/components/dashboard/PredictiveInsights";
 import InventoryValueWaffle from "@/components/dashboard/InventoryValueWaffle";
 import ExamResultsCalendar from "@/components/dashboard/ExamResultsCalendar";
+import RiskAlertsCard from "@/components/dashboard/RiskAlertsCard";
 import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 const Dashboard: React.FC = () => {
@@ -64,11 +65,11 @@ const Dashboard: React.FC = () => {
               <InventoryValueWaffle />
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Actions and Risk Alerts */}
             <div className="lg:col-span-1 xl:col-span-1">
               <div className="space-y-6 h-full">
                 <QuickActionsCard />
-                
+                <RiskAlertsCard />
               </div>
             </div>
           </div>
